@@ -3,7 +3,6 @@ from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
 from docker.types import Mount
 
-# --- CONFIGURATION ---
 default_args = {
     'owner': 'data_engineer',
     'depends_on_past': False,
@@ -12,7 +11,6 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-# Define the DAG (The Pipeline)
 with DAG(
     'enterprise_rewards_etl',
     default_args=default_args,
@@ -22,11 +20,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # We need to map the local data folder so it persists between steps
-    # HOST path (Your D: drive) -> CONTAINER path (/app/data)
-    # Note: In a real server, this would be an S3 bucket or HDFS.
-    
-    # STEP 1: BRONZE
+    # 1. BRONZE
     t_bronze = DockerOperator(
         task_id='ingest_bronze',
         image='rewards-etl:v1',
@@ -39,7 +33,7 @@ with DAG(
         mounts=[Mount(source="D:/enterprise-rewards-etl/data", target="/app/data", type="bind")]
     )
 
-    # STEP 2: SILVER
+    # 2. SILVER
     t_silver = DockerOperator(
         task_id='process_silver',
         image='rewards-etl:v1',
@@ -52,7 +46,7 @@ with DAG(
         mounts=[Mount(source="D:/enterprise-rewards-etl/data", target="/app/data", type="bind")]
     )
 
-    # STEP 3: GOLD
+    # 3. GOLD
     t_gold = DockerOperator(
         task_id='process_gold',
         image='rewards-etl:v1',
@@ -65,5 +59,18 @@ with DAG(
         mounts=[Mount(source="D:/enterprise-rewards-etl/data", target="/app/data", type="bind")]
     )
 
-    # Define Dependencies (The Flow)
-    t_bronze >> t_silver >> t_gold
+    # 4. PUBLISH (New Step)
+    # Important: Network mode must match the docker-compose network name
+    t_publish = DockerOperator(
+        task_id='publish_to_db',
+        image='rewards-etl:v1',
+        container_name='task_publish',
+        api_version='auto',
+        auto_remove=True,
+        command='python scripts/processing/publish_to_db.py',
+        docker_url='unix://var/run/docker.sock',
+        network_mode='enterprise-rewards-etl_default',
+        mounts=[Mount(source="D:/enterprise-rewards-etl/data", target="/app/data", type="bind")]
+    )
+
+    t_bronze >> t_silver >> t_gold >> t_publish

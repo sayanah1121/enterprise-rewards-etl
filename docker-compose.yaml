@@ -13,11 +13,28 @@ services:
       - ./data:/opt/airflow/data
     environment:
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
-      # CHANGED: Save DB in the 'data' folder so it persists
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/data/airflow.db
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/data/airflow.db
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
       - AIRFLOW__WEBSERVER__SECRET_KEY=supersecretkey12345
-    # We default to just running the scheduler and webserver
-    # We will do the 'init' manually first
     command: bash -c "airflow scheduler & airflow webserver"
+
+  # --- NEW: The Data Warehouse (Serving Layer) ---
+  postgres_dw:
+    image: postgres:13
+    container_name: rewards_warehouse
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rewards_db
+    ports:
+      - "5433:5432"  # Mapped to 5433 to avoid conflicts
+    volumes:
+      - pg_rewards_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d rewards_db"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  pg_rewards_data:

@@ -1,0 +1,15 @@
+# Ignore Data (Crucial: prevents 800MB upload)
+data/
+
+# Ignore Logs (Crucial: fixes the "invalid file request" error)
+logs/
+
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore Virtual Environment & Cache
+__pycache__
+*.pyc
+.env
+.vscode
