@@ -1,0 +1,19 @@
+# Ignore Data (We only want code, not the heavy data files)
+data/
+logs/
+plugins/
+
+# Ignore System & IDE files
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.DS_Store
+
+# Ignore Environment variables (Security)
+.env
+
+# Ignore Airflow local DB (We re-create it on launch)
+airflow.db
+airflow.cfg
+webserver_config.py
