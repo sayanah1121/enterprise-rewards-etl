@@ -1,74 +1,37 @@
-# Enterprise Rewards ETL Pipeline 🚀
+# Enterprise Rewards Lakehouse: The "Butterfly" Architecture 🦋
 
-An end-to-end Big Data pipeline that processes high-volume customer transaction data to calculate loyalty rewards.
-Built with **Apache Spark**, **Delta Lake**, **PostgreSQL**, and **Docker**, orchestrated by **Apache Airflow**.
+A high-scale **Data Lakehouse** solution that consolidates transaction data from multiple external vendors, processes complex loyalty logic in parallel, and distributes financial settlement reports.
 
-## 🏗️ Architecture (Lakehouse-to-Warehouse)
-**Bronze (Raw) → Silver (Cleaned) → Gold (Aggregated) → Serving (SQL DB)**
+## 🏗️ Architectural Patterns
+This project implements the **"Fan-In / Fan-Out"** and **"Diamond Dependency"** patterns to handle scale and complexity.
 
-* **Ingestion:** Python scripts ingest raw CSV data into a Delta Lake (Bronze Layer).
-* **Processing:** PySpark jobs clean PII, deduplicate transactions, and validate schemas (Silver Layer).
-* **Analytics:** Complex 3-way joins calculate reward points based on dynamic business rules (Gold Layer).
-* **Serving:** Final aggregated metrics are published to a **PostgreSQL Data Warehouse** for BI consumption.
-* **Orchestration:** Fully automated DAG managed by Apache Airflow running in Docker.
+**1. Ingestion (Fan-In):**
+* Parallel ingestion of raw CSV data from 4 distinct vendors: **Amazon, PayPal, Flipkart, Blackhawk**.
+* Orchestrated via Dynamic Task Mapping in **Apache Airflow**.
+
+**2. Processing (The Diamond):**
+* **Bronze:** Raw data ingestion with source tagging.
+* **Silver:** Merging disparate sources, deduplication, and PII masking (SHA-256).
+* **Gold (Parallel Streams):** Business logic is decoupled into two parallel Spark jobs:
+    * **Customer 360:** Aggregates points and spend per user for the App.
+    * **Vendor Analytics:** Aggregates revenue and liability per partner for Finance.
+
+**3. Distribution (Fan-Out):**
+* **Serving Layer:** Publishes Gold tables to **PostgreSQL** for real-time dashboards.
+* **Reverse ETL:** Generates and sends distinct **Settlement Reports (CSV)** back to each vendor.
 
 ## 🛠️ Tech Stack
-* **Compute:** Apache Spark 3.5.0
-* **Storage:** Delta Lake 3.0.0 (ACID Transactions)
-* **Warehouse:** PostgreSQL 13 (Serving Layer)
-* **Orchestration:** Apache Airflow 2.7.1
+* **Orchestration:** Apache Airflow 2.7 (DockerOperator)
+* **Processing:** Apache Spark 3.5 & Delta Lake 3.0
+* **Storage:** Local Data Lake (Delta Format)
+* **Serving:** PostgreSQL 13
 * **Containerization:** Docker & Docker Compose
 * **Language:** Python 3.11, SQL
 
 ## 🚀 How to Run
-This project is containerized. You do not need to install Spark or Postgres manually.
-
-### Prerequisites
-* Docker Desktop (Running)
-
-### Steps
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/YOUR_USERNAME/enterprise-rewards-etl.git](https://github.com/YOUR_USERNAME/enterprise-rewards-etl.git)
-    cd enterprise-rewards-etl
-    ```
-
-2.  **Build the Docker Image:**
-    ```bash
-    docker build -t rewards-etl:v1 .
-    ```
-
-3.  **Initialize Airflow & Database:**
-    ```bash
-    docker-compose run --rm airflow airflow db init
-    docker-compose run --rm airflow airflow users create --username admin --password admin --firstname Data --lastname Engineer --role Admin --email admin@example.com
-    ```
-
-4.  **Start the Pipeline:**
-    ```bash
-    docker-compose up -d
-    ```
-
-5.  **Run the Job:**
-    * Access Airflow UI: `http://localhost:8085` (User: `admin` / `admin`)
-    * Trigger the `enterprise_rewards_etl` DAG.
-    * Wait for the **publish_to_db** task to turn Green.
-
-6.  **Check the Data (SQL Analysis):**
-    Connect to the Data Warehouse using any SQL Client (DBeaver, VS Code):
-    * **Host:** `localhost`
-    * **Port:** `5433`
-    * **Database:** `rewards_db`
-    * **User:** `admin` / `password`
-
-## 📊 Data Flow & Logic
-1.  **Bronze:** Raw ingestion of `transactions`, `customers`, and `merchants` (Delta Format).
-2.  **Silver:**
-    * **PII Masking:** Customer emails hashed using SHA-256.
-    * **Data Quality:** Removing negative transaction amounts and duplicates.
-3.  **Gold:**
-    * **Business Logic:** `Points = Amount * Multiplier` (Only if `Amount > Min_Spend`).
-    * **Aggregations:** Generates Customer Leaderboards and Category Performance stats.
-4.  **Publish (Serving):**
-    * Writes Gold tables to **PostgreSQL** via JDBC.
-    * Enables low-latency SQL querying for business analysts.
+1.  **Start Infrastructure:** `docker-compose up -d`
+2.  **Build Image:** `docker build -t rewards-etl:v1 .`
+3.  **Trigger DAG:** Run `enterprise_rewards_butterfly` in Airflow.
+4.  **Verify Outputs:**
+    * **Database:** Query `vendor_analytics` table in Postgres.
+    * **Reports:** Check `data/exports/` for generated settlement files.
