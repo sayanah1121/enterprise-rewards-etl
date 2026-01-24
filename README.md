@@ -35,3 +35,5 @@ This project implements the **"Fan-In / Fan-Out"** and **"Diamond Dependency"** 
 4.  **Verify Outputs:**
     * **Database:** Query `vendor_analytics` table in Postgres.
     * **Reports:** Check `data/exports/` for generated settlement files.
+
+    <img width="1879" height="830" alt="Screenshot 2026-01-23 000432" src="https://github.com/user-attachments/assets/96b43aa3-27f1-4892-9d8e-d44a74945761" />
